@@ -42,11 +42,11 @@ class relay():
 
 		## == Recieve all incomming relay messages
 		for fd, event in sockets.poll(0.2):
-			if fd == self.sock.fileno() and event == select.EPOLLIN:
+			if fd == self.sock.fileno():
 				ns, na = self.sock.accept()
 				self.sockets[ns.fileno()] = ns
 				sockets.register(ns.fileno(), select.EPOLLIN)
-			else:
+			elif event == select.EPOLLIN:
 				tmp = self.sockets[fd].recv(8192)
 				if len(tmp) == 0:
 					# TODO: Remove socket
