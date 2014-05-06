@@ -15,6 +15,7 @@ class relay():
 		sockets.register(self.sock.fileno(), select.EPOLLIN)
 
 		self.output = []
+		self.dummy = None
 		self.exit = False
 		self.messages = {}
 
