@@ -42,6 +42,7 @@ class relay():
 
 		## == Recieve all incomming relay messages
 		for fd, event in sockets.poll(0.2):
+			print(event)
 			if fd == self.sock.fileno():
 				ns, na = self.sock.accept()
 				self.sockets[ns.fileno()] = ns
