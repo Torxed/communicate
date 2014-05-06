@@ -9,6 +9,7 @@ class relay():
 		self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 		print('Relay binding to: 10.8.0.1:7113')
 		self.sock.bind(('10.8.0.1', 7113))
+		self.sock.listen(4)
 		self.sockets = {}
 		self.socketwatch = select.epoll()
 		self.socketwatch.register(self.sock.fileno(), select.EPOLLIN)
