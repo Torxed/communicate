@@ -42,8 +42,8 @@ class relay():
 
 		## == Recieve all incomming relay messages
 		for fd, event in sockets.poll(0.2):
-			print(event)
-			if fd == self.sock.fileno():
+			if fd == self.sock.fileno() and event != 16:
+				print(event)
 				ns, na = self.sock.accept()
 				self.sockets[ns.fileno()] = ns
 				sockets.register(ns.fileno(), select.EPOLLIN)
