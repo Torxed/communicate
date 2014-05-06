@@ -1,18 +1,17 @@
 import select, json
 from socket import *
-from threading import *
 from time import sleep
 
-sockets = select.epoll()
 
 class relay():
 	def __init__(self):
-		super(relay, self).__init__()
 		self.sock = socket()
 		self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+		print('Relay binding to: 10.8.0.1:7113')
 		self.sock.bind(('10.8.0.1', 7113))
 		self.sockets = {}
-		sockets.register(self.sock.fileno(), select.EPOLLIN)
+		self.socketwatch = select.epoll()
+		self.socketwatch.register(self.sock.fileno(), select.EPOLLIN)
 
 		self.output = []
 		self.dummy = None
@@ -41,14 +40,18 @@ class relay():
 				self.output.append(msg)
 
 		## == Recieve all incomming relay messages
-		for fd, event in sockets.poll(0.2):
+		for fd, event in self.socketwatch.poll(0.2):
 			if fd == self.sock.fileno() and event != 16:
 				print(event)
 				ns, na = self.sock.accept()
 				self.sockets[ns.fileno()] = ns
-				sockets.register(ns.fileno(), select.EPOLLIN)
+				self.socketwatch.register(ns.fileno(), select.EPOLLIN)
 			elif event == select.EPOLLIN:
-				tmp = self.sockets[fd].recv(8192)
+				try:
+					tmp = self.sockets[fd].recv(8192)
+				except OSError:
+					# TODO: Remove socket
+					continue
 				if len(tmp) == 0:
 					# TODO: Remove socket
 					continue
@@ -63,10 +66,3 @@ class relay():
 						self.messages[data['to']] = []
 					self.messages[data['to']].append(data['msg'])
 				print('Relay-recieved:',tmp)
-
-#	def run(self):
-#		while not self.exit:
-#			self.flush()
-#			sleep(0.1)
-#		sockets.unregister(self.sock.fileno())
-#		self.sock.close()
