@@ -43,7 +43,6 @@ class relay():
 		## == Recieve all incomming relay messages
 		for fd, event in self.socketwatch.poll(0.2):
 			if fd == self.sock.fileno() and event != 16:
-				print(event)
 				ns, na = self.sock.accept()
 				self.sockets[ns.fileno()] = ns
 				self.socketwatch.register(ns.fileno(), select.EPOLLIN)
@@ -66,4 +65,3 @@ class relay():
 					if not data['to'] in self.messages:
 						self.messages[data['to']] = []
 					self.messages[data['to']].append(data['msg'])
-				print('Relay-recieved:',tmp)
