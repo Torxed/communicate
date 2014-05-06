@@ -12,6 +12,21 @@ class relay(Thread):
 		self.exit = False
 		self.start()
 
+	def reconnect(self):
+		if self.sock:
+			try:
+				sockets.unregister(self.sock.fileno())
+			except:
+				pass
+			self.sock.close()
+		self.sock = socket()
+		try:
+			self.sock.connect(('10.8.0.1', 7113))
+			sockets.register(self.sock.fileno(), select.EPOLLIN)
+		except ConnectionRefusedError:
+			return None
+		return True
+
 	def flush(self):
 		for i in range(0, len(self.output)):
 			msg = self.output.pop(0)

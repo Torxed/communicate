@@ -6,7 +6,7 @@ from socket import *
 from time import sleep, strftime, localtime, time
 from os import _exit
 
-#__password__ = ''
+from config import __password__, __channelpassword__
 ircparsers = __import__('ircparser')
 relay = __import__('relay').relay()
 
@@ -74,7 +74,7 @@ class irc(Thread, asyncore.dispatcher):
 		if not 'fullname' in self.conf:
 			self.conf['fullname'] = 'Kaylee Frye'
 		if not 'channels' in self.conf:
-			self.conf['channels'] = [('#dreamhack.crew', 'password'), '#DHSupport']
+			self.conf['channels'] = [('#dreamhack.crew', __channelpassword__), '#DHSupport']
 		if not 'password' in self.conf:
 			try:
 				self.conf['password'] = __password__
@@ -258,6 +258,7 @@ class irc(Thread, asyncore.dispatcher):
 		while not self.exit:
 			if len(self.inbuffer) > 0:
 				self.parse()
+			relay.flush()
 			sleep(0.01)
 		self.close()
 
