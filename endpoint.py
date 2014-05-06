@@ -4,10 +4,11 @@ from threading import *
 from time import sleep
 
 class relay(Thread):
-	def __init__(self, socket):
+	def __init__(self, socket, handles):
 		super(relay, self).__init__()
 		Thread.__init__(self)
 		self.sock = socket
+		self.handles = handles
 		self.exit = False
 		self.start()
 
@@ -27,6 +28,10 @@ class relay(Thread):
 				else:
 					self.output.append(msg)
 
+	def _send(self, what):
+		what = bytes(json.dumps(what), 'UTF-8')
+		self.sock.send(what)
+
 	def run(self):
 		while not self.exit:
 			try:
@@ -34,12 +39,41 @@ class relay(Thread):
 			except ValueError:
 				break
 			if 'source' in data:
-				print('[/'+data['source']+'/'+data['channel']+']', data['from'] + ': ' + data['msg'])
+				self.handles['/'+data['source']+'/'+data['channel']] = self._send
+				if 'flag' in data and data['flag'] == 'notice':
+					print('(/'+data['source']+'/'+data['channel']+')', data['from'] + ': ' + data['msg'])
+				else:
+					print('[/'+data['source']+'/'+data['channel']+']', data['from'] + ': ' + data['msg'])
 		self.sock.close()
 
+class handler(Thread):
+	def __init__(self, handles):
+		Thread.__init__(self)
+		self.handles = handles
+		self.states = {}
+		self.start()
+
+	def run(self):
+		while 1:
+			cmd = input('')
+			if cmd[0] == '/':
+				if ' ' in cmd:
+					path, msg = cmd.split(' ',1)
+					if path in self.handles:
+						self.handles[path]({'to' : path, 'msg' : msg})
+						self.states['lastpath'] = path
+			elif cmd[0] == '!':
+				pass
+			else:
+				if 'lastpath' in self.states and self.states['lastpath'] != '':
+					self.handles[self.states['lastpath']]({'to' : self.states['lastpath'], 'msg' : cmd})
+
+handles = {}
 sock = socket()
+sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 sock.bind(('', 1337))
 sock.listen(4)
+handler(handles)
 while 1:
 	ns, na = sock.accept()
-	relay(ns)
+	relay(ns, handles)

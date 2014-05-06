@@ -6,23 +6,36 @@ from socket import *
 from time import sleep, strftime, localtime, time
 from os import _exit
 
+#__password__ = ''
 ircparsers = __import__('ircparser')
 relay = __import__('relay').relay()
 
-class chatRoom():
+class chatRoom(Thread):
 	def __init__(self, room, identity, send):
+		Thread.__init__(self)
 		self.identity = identity
 		self.send = send
 		self.room = room
 		self.people = {}
 		self.muted = False
+		self.graceperiod = None
+		self.start()
 
 	def sad(self, who, what):
-		if self.room == self.identity or what[:len(self.identity)] == self.identity:
+		if self.room == self.identity or what[:len(self.identity)] == self.identity or (self.graceperiod and time() - self.graceperiod < 60*5):
 			if what[:len(self.identity)] == self.identity: what = what[len(self.identity):].strip(' :')
+			print('[relay::/irc/' + self.room + '] ' + who + ': ' + what)
 			relay._send(json.dumps({'from' : who, 'msg' : what, 'channel' : self.room, 'source' : 'irc'}))
+			self.graceperiod = time()
+		elif self.identity in what:
+			print('[relay::notice::/irc/' + self.room + '] ' + who + ': ' + what)
+			relay._send(json.dumps({'from' : who, 'msg' : what, 'channel' : self.room, 'source' : 'irc', 'flag' : 'notice'}))
 		else:
 			print('[' + self.room + '] ' + who + ': ' + what)
+
+	def write(self, what):
+		print('[' + self.room + '] ' + self.identity + ': ' + what)
+		self.send('PRIVMSG ' + self.room + ' :' + what)
 
 	def mode(self, who, mode):
 		self.people[who] = mode
@@ -37,6 +50,14 @@ class chatRoom():
 		for person in self.people:
 			yield person
 
+	def run(self):
+		while 1:
+			if '/irc/'+self.room in relay.messages and len(relay.messages['/irc/'+self.room]) > 0:
+				msg = relay.messages['/irc/'+self.room].pop(0)
+				self.write(msg)
+				self.graceperiod = time()
+			sleep(1)
+
 class irc(Thread, asyncore.dispatcher):
 	def __init__(self, config=None):
 		self.conf = config
@@ -47,13 +68,13 @@ class irc(Thread, asyncore.dispatcher):
 		if not 'port' in self.conf:
 			self.conf['port'] = 6667
 		if not 'nickname' in self.conf:
-			self.conf['nickname'] = 'DHPraktikanten'
+			self.conf['nickname'] = 'DoXiD'
 		if not 'userid' in self.conf:
-			self.conf['userid'] = 'DHPraktikanten'
+			self.conf['userid'] = 'DoXiD'
 		if not 'fullname' in self.conf:
 			self.conf['fullname'] = 'Kaylee Frye'
 		if not 'channels' in self.conf:
-			self.conf['channels'] = ['#kablamo']
+			self.conf['channels'] = [('#dreamhack.crew', 'password'), '#DHSupport']
 		if not 'password' in self.conf:
 			try:
 				self.conf['password'] = __password__
@@ -118,7 +139,6 @@ class irc(Thread, asyncore.dispatcher):
 		if len(row) == 0:
 			self.lockedbuffer = False
 			return
-		print('Prasing row:',row)
 
 		if self.compare('PING', row):
 			self._send('PONG ' + row[5:])
@@ -131,20 +151,25 @@ class irc(Thread, asyncore.dispatcher):
 			self.conf['motd'] += row
 			if self._in('End of /MOTD command', row):
 				if self.conf['password']:
-					if self.conf['server'] == 'se.irc.quakenet.org':
+					if 'quakenet.org' in self.conf['server']:
+						print('!Authenticating with Q@CServe.quakenet.org')
 						self._send('PRIVMSG Q@CServe.quakenet.org :AUTH '+self.conf['nickname'] + ' ' + self.conf['password'])
 					else:
-						self._send('PRIVMSG NickServ :identify ' + self.conf['nickname'] + ' ' + self.conf['password'])
+						pass #self._send('PRIVMSG NickServ :identify ' + self.conf['nickname'] + ' ' + self.conf['password'])
 
 				for chan in self.conf['channels']:
 					if len(chan) <= 0: continue
-
-					self._send('JOIN ' + chan)
+					if type(chan) == tuple:
+						chan, password = chan
+						self._send('JOIN ' + chan + ' ' + password)
+					else:
+						self._send('JOIN ' + chan)
 					self.channels[chan] = chatRoom(chan, self.conf['nickname'], self._send)
 
 				self.MOTD = True
 
 		elif self.MOTD:
+			#print('Prasing row:',row)
 
 			functions = {
 				' JOIN ' : self.ircparse.JOIN,
@@ -164,7 +189,10 @@ class irc(Thread, asyncore.dispatcher):
 				who, code, row = row.split(' ', 2)
 				if code == '353':
 					_to, people = row.split(' :', 1)
-					_to, chan = _to.split('=',1)
+					if '=' in _to:
+						_to, chan = _to.split('=',1)
+					elif '@' in _to:
+						_to, chan = _to.split('@',1)
 					_to = self.refstr(_to)
 					chan = self.refstr(chan)
 					people = self.refstr(people)
@@ -209,7 +237,7 @@ class irc(Thread, asyncore.dispatcher):
 		while self.is_writable:
 			pop = self.buffer.pop(0)
 			sent = self.send(bytes(pop + '\r\n', 'UTF-8'))
-			print('Sent:',pop)
+			print('Sent:',pop.strip('\r\n'))
 			if len(self.buffer) == 0:
 				break
 			sleep(1)
