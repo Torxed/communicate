@@ -1,4 +1,5 @@
 #!C:/python33/python
+# -*- coding: iso-8859-15 -*-
 
 import asyncore, socket, traceback, sys, json
 from threading import *
