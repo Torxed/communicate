@@ -11,9 +11,6 @@ from random import randint
 from config import __password__, __channelpassword__
 relay = __import__('relay').relay()
 
-def swedify(data):
-	return data.replace(b'\xe5', b'å').replace(b'\xe4', b'ä').replace(b'\xf6', b'ö').replace(b'\xc6', 'Ä')
-
 class chatRoom(Thread):
 	def __init__(self, room, identity, send):
 		Thread.__init__(self)
@@ -299,8 +296,7 @@ class irc(Thread, asyncore.dispatcher):
 		f = open('debug.raw', 'a')
 		f.write(str([data]) + '\n')
 		f.close()
-		data = swedify(data)
-		for row in data.decode('utf-8').split('\r\n'):
+		for row in data.decode('utf-8', errors='replace').split('\r\n'):
 			self.inbuffer.append(row+'\r\n')
 	def writable(self):
 		return (len(self.buffer) > 0)
