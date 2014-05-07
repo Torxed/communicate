@@ -176,7 +176,7 @@ class irc(Thread, asyncore.dispatcher):
 
 		self.buffer.append('NICK ' + self.conf['nickname'] + '\r\n')
 		self.buffer.append('USER ' + self.conf['userid'] + ' ' + self.conf['server'] + ' ' + self.conf['nickname'] + ' :' + self.conf['fullname'] + '\r\n')
-		self.ircparse = ircparsers.ircparsers(self._send, self.conf, self.channels)
+		self.ircparse = ircparsers(self._send, self.conf, self.channels)
 
 		#self.is_writable = True
 		self.start()
