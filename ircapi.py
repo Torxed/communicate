@@ -10,6 +10,9 @@ from random import randint
 from config import __password__, __channelpassword__
 relay = __import__('relay').relay()
 
+def swedify(data):
+	return data.replace(b'\xe5', b'å').replace(b'\xe4', b'ä').replace(b'\xf6', b'ö').replace(b'\xc6', 'Ä')
+
 class chatRoom(Thread):
 	def __init__(self, room, identity, send):
 		Thread.__init__(self)
@@ -24,11 +27,11 @@ class chatRoom(Thread):
 	def sad(self, who, what):
 		if self.room == self.identity or what[:len(self.identity)] == self.identity or (self.graceperiod and time() - self.graceperiod < 60*5):
 			if what[:len(self.identity)] == self.identity: what = what[len(self.identity):].strip(' :')
-			print('[relay::/irc/' + self.room + '] ' + who + ': ' + what)
+			print('[Relay::Forward::/irc/' + self.room + '] ' + who + ': ' + what)
 			relay._send(json.dumps({'from' : who, 'msg' : what, 'channel' : self.room, 'source' : 'irc'}))
 			self.graceperiod = time()
 		elif self.identity in what:
-			print('[relay::notice::/irc/' + self.room + '] ' + who + ': ' + what)
+			print('[Relay::Notice::/irc/' + self.room + '] ' + who + ': ' + what)
 			relay._send(json.dumps({'from' : who, 'msg' : what, 'channel' : self.room, 'source' : 'irc', 'flag' : 'notice'}))
 		else:
 			print('[' + self.room + '] ' + who + ': ' + what)
@@ -295,6 +298,7 @@ class irc(Thread, asyncore.dispatcher):
 		f = open('debug.raw', 'a')
 		f.write(str([data]) + '\n')
 		f.close()
+		data = swedify(data)
 		for row in data.decode('utf-8').split('\r\n'):
 			self.inbuffer.append(row+'\r\n')
 	def writable(self):
@@ -305,7 +309,6 @@ class irc(Thread, asyncore.dispatcher):
 		while self.is_writable:
 			pop = self.buffer.pop(0)
 			sent = self.send(bytes(pop + '\r\n', 'UTF-8'))
-			print('Sent:',pop.strip('\r\n'))
 			if len(self.buffer) == 0:
 				break
 			sleep(1)
